@@ -151,6 +151,7 @@ h1 .yu { font-size: .4em; vertical-align: .62em; margin: 0 .22em; background: no
   .dek { font-size: 17px; }
   .scroll-hint, .hero-foot { display: none; }
   .stat .lbl br { display: none; }
+  .stat .lbl { text-wrap: balance; }
   .hud { right: 50%; transform: translateX(50%); bottom: 3vh; width: auto; padding: 6px 10px 6px 16px; display: flex; flex-direction: row-reverse; align-items: center; gap: 14px; white-space: nowrap; }
   .hud-top span { display: none; }
   .hud.rv { animation-name: rvInM; }

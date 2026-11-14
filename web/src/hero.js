@@ -11,11 +11,15 @@ export function heroGlobe({ data, world, Y, C }) {
   const grat = d3.geoGraticule10();
   const rad = Math.PI / 180;
   let W, H, R0, cx, cy, dpr;
+  const fxc = document.createElement("canvas"), fx = fxc.getContext("2d");
+  const smc = document.createElement("canvas"), sm = smc.getContext("2d");
   function resize() {
     dpr = Math.min(2, devicePixelRatio || 1);
     W = hero.clientWidth; H = hero.clientHeight;
     cv.width = W * dpr; cv.height = H * dpr;
     cv.style.width = W + "px"; cv.style.height = H + "px";
+    fxc.width = W * dpr; fxc.height = H * dpr;
+    smc.width = Math.ceil((W * dpr) / 4); smc.height = Math.ceil((H * dpr) / 4);
     const mob = W < 860;
     R0 = mob ? Math.min(W * 0.48, H * 0.3) : Math.min(H * 0.41, W * 0.27);
     cx = mob ? W / 2 : W * 0.7; cy = mob ? H * 0.74 : H * 0.52;
@@ -34,11 +38,11 @@ export function heroGlobe({ data, world, Y, C }) {
   world.features.forEach((f, i) => { octx.beginPath(); opath(f); octx.fillStyle = `rgb(${(i + 1) & 255},${(i + 1) >> 8},0)`; octx.fill(); });
   const px = octx.getImageData(0, 0, RW, RH).data;
   const groups = new Map();
-  const STEP = 1.1;
-  for (let lat = -56; lat <= 83; lat += STEP) {
+  const STEP = 0.95;
+  for (let lat = -56, row = 0; lat <= 83; lat += STEP * 0.866, row++) {
     const n = Math.round((360 * Math.cos(lat * rad)) / STEP);
     for (let k = 0; k < n; k++) {
-      const lon = -180 + ((k + 0.5) * 360) / n;
+      const lon = -180 + ((k + 0.25 + (row % 2) * 0.5) * 360) / n;
       const [x, y] = eq([lon, lat]);
       const o = (Math.floor(y) * RW + Math.floor(x)) * 4;
       const idx = px[o] + (px[o + 1] << 8) - 1;
@@ -48,10 +52,10 @@ export function heroGlobe({ data, world, Y, C }) {
       groups.get(idx).push(lon, lat, Math.sin(lat * rad), Math.cos(lat * rad));
     }
   }
-  const BASE = { C: "#ff5446", U: "#4f95f0", E: "#e2b04a", eum: "#7a6430", none: "#2b3650" };
+  const BASE = { C: "#ff4f3f", U: "#4f95f0", E: "#e9b54a", eum: "#6e5a2c", none: "#26314a" };
   const colOf = (id, i) => {
-    if (id === "CHN") return "#ff8a6e";
-    if (id === "USA") return "#8cc0ff";
+    if (id === "CHN") return "#ffc2ad";
+    if (id === "USA") return "#b9d8ff";
     const c = data.countries[id];
     if (!c) return BASE.none;
     if (c.eu) return BASE.eum;
@@ -134,16 +138,16 @@ export function heroGlobe({ data, world, Y, C }) {
   let visible = true;
   new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(hero);
 
-  const strokePts = (pts, j0, j1) => {
-    ctx.beginPath();
+  const strokePts = (X, pts, j0, j1) => {
+    X.beginPath();
     let pen = false;
     for (let j = j0; j <= j1; j++) {
       const p = pts[j];
       if (!p) { pen = false; continue; }
-      if (pen) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]);
+      if (pen) X.lineTo(p[0], p[1]); else X.moveTo(p[0], p[1]);
       pen = true;
     }
-    ctx.stroke();
+    X.stroke();
   };
 
   let last = t0;
@@ -159,53 +163,56 @@ export function heroGlobe({ data, world, Y, C }) {
     const i0 = Math.floor(yf), fr = yf - i0;
     setHud(i0, now);
 
+    // ---- 背景层：星空、大气、海洋、经纬网、海岸线
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, W, H);
-    // 星空
     ctx.fillStyle = "#cdd8ff";
     for (const s of stars) {
-      ctx.globalAlpha = 0.15 + 0.45 * Math.sin(now / 1100 + s.p) ** 2;
+      ctx.globalAlpha = 0.12 + 0.45 * Math.sin(now / 1100 + s.p) ** 2;
       ctx.fillRect(s.x * W, s.y * H, s.r, s.r);
     }
     ctx.globalAlpha = intro;
-    // 大气层辉光
-    let g = ctx.createRadialGradient(cx, cy, R * 0.96, cx, cy, R * 1.32);
-    g.addColorStop(0, "rgba(96,140,255,0.38)"); g.addColorStop(0.25, "rgba(70,110,230,0.14)"); g.addColorStop(1, "rgba(40,70,180,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.32, 0, 7); ctx.fill();
-    // 海洋
-    g = ctx.createRadialGradient(cx - R * 0.4, cy - R * 0.45, R * 0.05, cx, cy, R);
-    g.addColorStop(0, "#1b2a4d"); g.addColorStop(0.6, "#0d1529"); g.addColorStop(1, "#060a14");
+    let g = ctx.createRadialGradient(cx, cy, R * 0.98, cx, cy, R * 1.5);
+    g.addColorStop(0, "rgba(120,165,255,0.45)"); g.addColorStop(0.1, "rgba(85,130,245,0.22)");
+    g.addColorStop(0.4, "rgba(50,90,210,0.06)"); g.addColorStop(1, "rgba(40,70,180,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.5, 0, 7); ctx.fill();
+    g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, 0, cx, cy, R * 1.02);
+    g.addColorStop(0, "#1f305a"); g.addColorStop(0.45, "#111c38"); g.addColorStop(0.85, "#080e1e"); g.addColorStop(1, "#05080f");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-    ctx.beginPath(); gpath(grat); ctx.strokeStyle = "rgba(130,160,230,0.07)"; ctx.lineWidth = 0.6; ctx.stroke();
+    ctx.beginPath(); gpath(grat); ctx.strokeStyle = "rgba(140,170,240,0.06)"; ctx.lineWidth = 0.5; ctx.stroke();
+    ctx.beginPath(); gpath(world); ctx.strokeStyle = "rgba(160,190,250,0.13)"; ctx.lineWidth = 0.5; ctx.stroke();
 
-    // 陆地点阵
+    // ---- 发光层（离屏）：点阵、飞线、城市
+    const X = fx;
+    X.setTransform(dpr, 0, 0, dpr, 0, 0);
+    X.globalCompositeOperation = "source-over"; X.globalAlpha = 1;
+    X.clearRect(0, 0, W, H);
     const l0 = -lam * rad, p0 = -phi * rad, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
     const k = R / 380, ease = fr < 0.5 ? 0 : d3.easeCubicInOut((fr - 0.5) / 0.5);
+    const LX = -0.48, LY = -0.55, LZ = 0.68; // 左上方光源
     for (const grp of dotGroups) {
       const a = grp.cols[i0], b = grp.cols[Math.min(Y.length - 1, i0 + 1)];
-      ctx.fillStyle = a === b || ease === 0 ? a : d3.interpolateRgb(a, b)(ease);
-      ctx.beginPath();
+      const col = a === b || ease === 0 ? a : d3.interpolateRgb(a, b)(ease);
+      const bands = [new Path2D(), new Path2D(), new Path2D()];
       const P = grp.pts;
       for (let j = 0; j < P.length; j += 4) {
         const cosc = sp0 * P[j + 2] + cp0 * P[j + 3] * Math.cos(P[j] * rad - l0);
-        if (cosc < 0.03) continue;
+        if (cosc < 0.02) continue;
         const xy = proj([P[j], P[j + 1]]);
-        const r = (0.55 + 1.15 * cosc) * k;
-        ctx.moveTo(xy[0] + r, xy[1]); ctx.arc(xy[0], xy[1], r, 0, 6.2832);
+        const lit = ((xy[0] - cx) / R) * LX + ((xy[1] - cy) / R) * LY + cosc * LZ;
+        const r = (0.45 + 1.05 * Math.sqrt(cosc)) * k;
+        const bp = bands[lit < 0.15 ? 0 : lit < 0.55 ? 1 : 2];
+        bp.moveTo(xy[0] + r, xy[1]); bp.arc(xy[0], xy[1], r, 0, 6.2832);
       }
-      ctx.fill();
+      X.fillStyle = col;
+      X.globalAlpha = 0.42 * intro; X.fill(bands[0]);
+      X.globalAlpha = 0.75 * intro; X.fill(bands[1]);
+      X.globalAlpha = intro; X.fill(bands[2]);
     }
-    // 边缘暗角 + 高光
-    g = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R);
-    g.addColorStop(0, "rgba(4,7,14,0)"); g.addColorStop(1, "rgba(4,7,14,0.6)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-    g = ctx.createRadialGradient(cx - R * 0.45, cy - R * 0.5, 0, cx - R * 0.45, cy - R * 0.5, R * 0.9);
-    g.addColorStop(0, "rgba(170,200,255,0.10)"); g.addColorStop(1, "rgba(170,200,255,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
 
-    // 飞线
-    ctx.globalCompositeOperation = "lighter";
-    ctx.lineCap = "round";
+    X.globalCompositeOperation = "lighter";
+    X.lineCap = "round";
     const sec = now / 1000;
     for (const id of arcIds) {
       const st = arcState[id];
@@ -222,43 +229,84 @@ export function heroGlobe({ data, world, Y, C }) {
         const xy = proj(q.p);
         pts[j] = [cx + (xy[0] - cx) * q.h, cy + (xy[1] - cy) * q.h];
       }
-      ctx.strokeStyle = C[st.t]; ctx.globalAlpha = 0.16 * intro; ctx.lineWidth = 0.9;
-      strokePts(pts, 0, nMax);
+      X.strokeStyle = C[st.t]; X.globalAlpha = 0.14 * intro; X.lineWidth = 0.8;
+      strokePts(X, pts, 0, nMax);
       if (grow < 1) {
         const p = pts[nMax];
-        if (p) { ctx.globalAlpha = 0.9 * (1 - grow); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p[0], p[1], 2.2, 0, 7); ctx.fill(); }
+        if (p) { X.globalAlpha = 0.95 * (1 - grow); X.fillStyle = "#fff"; X.beginPath(); X.arc(p[0], p[1], 2.4, 0, 7); X.fill(); }
         continue;
       }
-      // 流光
       const u = (sec * st.spd + st.off) % 1.6;
       if (u > 1.22) continue;
-      const head = Math.min(N, u * N), tail = Math.max(0, head - 0.24 * N);
-      ctx.lineWidth = 1.7;
+      const head = Math.min(N, u * N), tail = Math.max(0, head - 0.26 * N);
+      X.lineWidth = 1.6;
       for (let s = 0; s < 6; s++) {
         const j0 = Math.floor(tail + ((head - tail) * s) / 6), j1 = Math.min(N, Math.ceil(tail + ((head - tail) * (s + 1)) / 6));
-        ctx.globalAlpha = ((s + 1) / 6) ** 1.6 * 0.85 * intro;
-        strokePts(pts, j0, j1);
+        X.globalAlpha = ((s + 1) / 6) ** 1.8 * 0.9 * intro;
+        strokePts(X, pts, j0, j1);
       }
+      const hp = pts[Math.round(head)];
+      if (u <= 1 && hp) { X.globalAlpha = 0.9 * intro; X.fillStyle = "#fff4ec"; X.beginPath(); X.arc(hp[0], hp[1], 1.3, 0, 7); X.fill(); }
     }
-    // 中心城市脉冲
+    const labels = [];
     for (const [t, ll] of Object.entries(HUB)) {
       const cosc = sp0 * Math.sin(ll[1] * rad) + cp0 * Math.cos(ll[1] * rad) * Math.cos(ll[0] * rad - l0);
       if (cosc < 0.05) continue;
       const [x, y] = proj(ll);
-      const ph = (sec % 2) / 2;
-      ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = (1 - ph) * 0.8 * intro; ctx.strokeStyle = C[t]; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(x, y, 4 + ph * 18, 0, 7); ctx.stroke();
-      g = ctx.createRadialGradient(x, y, 0, x, y, 14);
-      g.addColorStop(0, C[t]); g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.globalAlpha = 0.9 * intro; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.fill();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, 7); ctx.fill();
-      ctx.globalAlpha = Math.min(1, cosc * 3) * intro;
-      ctx.font = "700 13px 'Noto Sans SC', sans-serif"; ctx.fillStyle = "#f3ece0";
-      ctx.shadowColor = "rgba(0,0,0,.9)"; ctx.shadowBlur = 6;
-      ctx.fillText(HUBNAME[t], x + 10, y - 8);
-      ctx.shadowBlur = 0;
+      const ph = (sec % 2.4) / 2.4;
+      X.globalAlpha = (1 - ph) ** 1.5 * 0.9 * intro; X.strokeStyle = C[t]; X.lineWidth = 1.3;
+      X.beginPath(); X.arc(x, y, 3 + ph * 22, 0, 7); X.stroke();
+      g = X.createRadialGradient(x, y, 0, x, y, 16);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(0.18, C[t]); g.addColorStop(1, "rgba(0,0,0,0)");
+      X.globalAlpha = intro; X.fillStyle = g; X.beginPath(); X.arc(x, y, 16, 0, 7); X.fill();
+      labels.push([t, x, y, Math.min(1, cosc * 3)]);
+    }
+
+    // ---- 合成：清晰层 + 泛光
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(fxc, 0, 0);
+    sm.globalCompositeOperation = "copy";
+    sm.filter = "blur(2px)";
+    sm.drawImage(fxc, 0, 0, smc.width, smc.height);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.75;
+    ctx.drawImage(smc, 0, 0, cv.width, cv.height);
+
+    // ---- 球体光影：夜面、菲涅尔边缘光、高光、轮廓
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = intro;
+    g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.2, cx, cy, R * 1.05);
+    g.addColorStop(0, "rgba(3,5,12,0)"); g.addColorStop(0.6, "rgba(3,5,12,0.05)"); g.addColorStop(1, "rgba(3,5,12,0.62)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = "screen";
+    g = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R);
+    g.addColorStop(0, "rgba(80,130,255,0)"); g.addColorStop(0.8, "rgba(90,140,255,0.08)"); g.addColorStop(1, "rgba(130,175,255,0.32)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+    g = ctx.createRadialGradient(cx - R * 0.42, cy - R * 0.48, 0, cx - R * 0.42, cy - R * 0.48, R * 0.75);
+    g.addColorStop(0, "rgba(190,215,255,0.13)"); g.addColorStop(1, "rgba(190,215,255,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    g = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+    g.addColorStop(0, "rgba(185,210,255,0.6)"); g.addColorStop(0.5, "rgba(140,175,255,0.18)"); g.addColorStop(1, "rgba(120,160,255,0.04)");
+    ctx.strokeStyle = g; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+
+    // ---- 城市标签
+    ctx.font = "700 12px 'Noto Sans SC', sans-serif";
+    ctx.textBaseline = "middle";
+    for (const [t, x, y, al] of labels) {
+      const txt = HUBNAME[t], tw = ctx.measureText(txt).width;
+      const bx = x + 12, by = y - 22, bw = tw + 20, bh = 20;
+      ctx.globalAlpha = al * intro;
+      ctx.strokeStyle = C[t]; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(x + 3, y - 3); ctx.lineTo(bx, by + bh / 2); ctx.stroke();
+      ctx.fillStyle = "rgba(9,13,24,0.78)";
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10); else ctx.rect(bx, by, bw, bh);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C[t]; ctx.beginPath(); ctx.arc(bx + 8, by + bh / 2, 2.5, 0, 7); ctx.fill();
+      ctx.fillStyle = "#f3ece0"; ctx.fillText(txt, bx + 14, by + bh / 2 + 0.5);
     }
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
