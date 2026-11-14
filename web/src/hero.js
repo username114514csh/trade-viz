@@ -52,6 +52,23 @@ export function heroGlobe({ data, world, Y, C }) {
       groups.get(idx).push(lon, lat, Math.sin(lat * rad), Math.cos(lat * rad));
     }
   }
+  // 海洋点阵（比陆地稀疏，离岸一点距离）
+  const oc = [], OS = 2.2;
+  for (let lat = -66, row = 0; lat <= 78; lat += OS * 0.866, row++) {
+    const n = Math.round((360 * Math.cos(lat * rad)) / OS);
+    for (let k = 0; k < n; k++) {
+      const lon = -180 + ((k + (row % 2) * 0.5) * 360) / n;
+      const [x, y] = eq([lon, lat]);
+      let land = false;
+      for (const [dx, dy] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3]]) {
+        const xx = Math.min(RW - 1, Math.max(0, Math.floor(x) + dx)), yy = Math.min(RH - 1, Math.max(0, Math.floor(y) + dy));
+        const o = (yy * RW + xx) * 4;
+        if (px[o] || px[o + 1]) { land = true; break; }
+      }
+      if (!land) oc.push(lon, lat, Math.sin(lat * rad), Math.cos(lat * rad));
+    }
+  }
+  const oceanPts = Float32Array.from(oc);
   const BASE = { C: "#ff4f3f", U: "#4f95f0", E: "#e9b54a", eum: "#6e5a2c", none: "#26314a" };
   const colOf = (id, i) => {
     if (id === "CHN") return "#ffc2ad";
@@ -106,7 +123,7 @@ export function heroGlobe({ data, world, Y, C }) {
       const t = data.countries[id].top[i];
       const st = arcState[id];
       const nt = HUB[t] ? t : null;
-      if (nt !== st.t) { st.t = nt; st.born = now; }
+      if (nt !== st.t) { st.t = nt; st.born = now + Math.random() * Math.min(600, PER_YEAR * 1.2); }
     }
   }
 
@@ -128,11 +145,14 @@ export function heroGlobe({ data, world, Y, C }) {
   cv.addEventListener("pointerup", endDrag);
   cv.addEventListener("pointercancel", endDrag);
 
-  const PER_YEAR = 230;
+  // 首次播放稍快（约 8.7 秒），点「重播」放慢到约 16 秒，飞线依次长出不扎堆
+  let PER_YEAR = 300;
   const t0 = performance.now();
   let tStart = reduce ? -1e9 : t0 + 1500;
   document.getElementById("replay").addEventListener("click", () => {
-    tStart = performance.now() + 300; shownYear = -1;
+    PER_YEAR = 560;
+    for (const id of arcIds) arcState[id].t = null;
+    tStart = performance.now() + 700; shownYear = -1;
   });
 
   let visible = true;
@@ -177,10 +197,36 @@ export function heroGlobe({ data, world, Y, C }) {
     g.addColorStop(0, "rgba(120,165,255,0.45)"); g.addColorStop(0.1, "rgba(85,130,245,0.22)");
     g.addColorStop(0.4, "rgba(50,90,210,0.06)"); g.addColorStop(1, "rgba(40,70,180,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.5, 0, 7); ctx.fill();
+    // 海洋：深海渐变 + 偏青的浅层 + 阳光反射
     g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, 0, cx, cy, R * 1.02);
-    g.addColorStop(0, "#1f305a"); g.addColorStop(0.45, "#111c38"); g.addColorStop(0.85, "#080e1e"); g.addColorStop(1, "#05080f");
+    g.addColorStop(0, "#1d4170"); g.addColorStop(0.3, "#13305a"); g.addColorStop(0.62, "#0b1c3c"); g.addColorStop(0.88, "#060f24"); g.addColorStop(1, "#040814");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-    ctx.beginPath(); gpath(grat); ctx.strokeStyle = "rgba(140,170,240,0.06)"; ctx.lineWidth = 0.5; ctx.stroke();
+    ctx.globalCompositeOperation = "screen";
+    const gx = cx - R * 0.38, gy = cy - R * 0.42;
+    g = ctx.createRadialGradient(gx, gy, 0, gx, gy, R * 0.55);
+    g.addColorStop(0, "rgba(120,200,255,0.22)"); g.addColorStop(0.35, "rgba(70,150,230,0.09)"); g.addColorStop(1, "rgba(40,100,200,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    // 海洋点阵：稀疏、受光照
+    {
+      const l0 = -lam * rad, p0 = -phi * rad, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+      const bands = [new Path2D(), new Path2D(), new Path2D()], s = Math.max(1, R / 420);
+      const P = oceanPts;
+      for (let j = 0; j < P.length; j += 4) {
+        const cosc = sp0 * P[j + 2] + cp0 * P[j + 3] * Math.cos(P[j] * rad - l0);
+        if (cosc < 0.22) continue;
+        const xy = proj([P[j], P[j + 1]]);
+        const lit = ((xy[0] - cx) / R) * -0.48 + ((xy[1] - cy) / R) * -0.55 + cosc * 0.68;
+        const w = s * (0.5 + 0.7 * cosc);
+        bands[lit < 0.15 ? 0 : lit < 0.55 ? 1 : 2].rect(xy[0] - w / 2, xy[1] - w / 2, w, w);
+      }
+      ctx.fillStyle = "#7fb0ff";
+      ctx.globalAlpha = 0.08 * intro; ctx.fill(bands[0]);
+      ctx.globalAlpha = 0.17 * intro; ctx.fill(bands[1]);
+      ctx.globalAlpha = 0.28 * intro; ctx.fill(bands[2]);
+      ctx.globalAlpha = intro;
+    }
+    ctx.beginPath(); gpath(grat); ctx.strokeStyle = "rgba(140,180,240,0.05)"; ctx.lineWidth = 0.5; ctx.stroke();
     ctx.beginPath(); gpath(world); ctx.strokeStyle = "rgba(160,190,250,0.13)"; ctx.lineWidth = 0.5; ctx.stroke();
 
     // ---- 发光层（离屏）：点阵、飞线、城市
@@ -219,7 +265,8 @@ export function heroGlobe({ data, world, Y, C }) {
       if (!st.t) continue;
       const geo = arcGeom(id, st.t);
       const N = geo.length - 1;
-      const grow = Math.min(1, (now - st.born) / 900);
+      if (now < st.born) continue;
+      const grow = Math.min(1, (now - st.born) / 1100);
       const nMax = Math.round(N * d3.easeCubicOut(grow));
       const pts = new Array(nMax + 1);
       for (let j = 0; j <= nMax; j++) {
@@ -233,7 +280,7 @@ export function heroGlobe({ data, world, Y, C }) {
       strokePts(X, pts, 0, nMax);
       if (grow < 1) {
         const p = pts[nMax];
-        if (p) { X.globalAlpha = 0.95 * (1 - grow); X.fillStyle = "#fff"; X.beginPath(); X.arc(p[0], p[1], 2.4, 0, 7); X.fill(); }
+        if (p) { X.globalAlpha = 0.7 * (1 - grow) * intro; X.fillStyle = "#fff"; X.beginPath(); X.arc(p[0], p[1], 1.6, 0, 7); X.fill(); }
         continue;
       }
       const u = (sec * st.spd + st.off) % 1.6;
