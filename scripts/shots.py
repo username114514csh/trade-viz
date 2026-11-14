@@ -7,7 +7,7 @@ async def main():
         b = await p.chromium.launch()
         pg = await b.new_page(viewport={"width": 1440, "height": 900}, device_scale_factor=1.5)
         errs = []; pg.on("console", lambda m: m.type == "error" and errs.append(m.text)); pg.on("pageerror", lambda e: errs.append(str(e)))
-        await pg.goto(URL); await pg.wait_for_function("window.__ready"); await pg.wait_for_timeout(4500)
+        await pg.goto(URL); await pg.wait_for_function("window.__ready"); await pg.wait_for_timeout(9500)
         await pg.screenshot(path=f"{OUT}/1_hero.png")
         async def at(sel, idx, name, wait=1800):
             await pg.evaluate(f"""(()=>{{const s=document.querySelectorAll('{sel}')[{idx}];const sec=s.closest('section');const r=s.getBoundingClientRect();window.scrollTo(0, Math.max(sec.getBoundingClientRect().top+scrollY, r.top+scrollY+r.height/2-innerHeight/2))}})()""")

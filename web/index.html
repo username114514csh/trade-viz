@@ -11,18 +11,36 @@
 
   <!-- 开场 -->
   <header id="hero">
-    <svg id="globe"></svg>
+    <canvas id="globe"></canvas>
     <div class="hero-text">
-      <p class="kicker">国际贸易 · 数据叙事 · 1995—2024</p>
-      <h1>广度与深度</h1>
-      <p class="dek">三十年间，中国成了世界上最多国家的头号贸易伙伴。<br />但它赢得的是<em>广度</em>，还是<em>深度</em>？</p>
-      <div class="legend-inline">
-        <span><i class="sw cn"></i>头号伙伴是中国</span>
-        <span><i class="sw us"></i>是美国</span>
-        <span><i class="sw eu"></i>是欧盟</span>
+      <p class="kicker rv" style="--d:.1s"><i class="kline"></i>国际贸易 · 数据叙事 · 1995—2024</p>
+      <h1 aria-label="广度与深度"><span class="ch" style="--d:.25s">广</span><span class="ch" style="--d:.37s">度</span><span class="ch yu" style="--d:.55s">与</span><span class="ch" style="--d:.7s">深</span><span class="ch" style="--d:.82s">度</span></h1>
+      <p class="dek rv" style="--d:1s">三十年间，中国成了世界上最多国家的头号贸易伙伴。<br />但它赢得的是<em>广度</em>，还是<em>深度</em>？</p>
+      <div class="hero-stats rv" style="--d:1.2s">
+        <div class="stat">
+          <div class="num"><span class="from">4</span><span class="arr">→</span><span class="t-cn" data-count="69">69</span></div>
+          <div class="lbl">以中国为头号贸易伙伴的<br />经济体，1995 → 2024</div>
+        </div>
+        <div class="stat">
+          <div class="num t-cn" data-count="107">107</div>
+          <div class="lbl">个经济体与中国的贸易额<br />已超过与美国</div>
+        </div>
+        <div class="stat">
+          <div class="num t-eu"><span data-count="9.8" data-dec="1">9.8</span><small>%</small></div>
+          <div class="lbl">但这些国家对华贸易<br />占 GDP 的中位数只有</div>
+        </div>
       </div>
-      <p class="scroll-hint">向下滚动 ↓</p>
+      <p class="scroll-hint rv" style="--d:1.6s"><i class="mouse"></i>向下滚动，看三十年的变化</p>
     </div>
+    <aside class="hud rv" style="--d:1.3s">
+      <div class="hud-top"><span>各国的头号贸易伙伴</span><button id="replay" class="replay" type="button">↺ 重播</button></div>
+      <div class="hud-year" id="hudYear">1995</div>
+      <div class="hud-row"><i class="sw cn"></i><span>中国</span><span class="hb"><i id="hbC" class="cn"></i></span><b id="hcC">4</b></div>
+      <div class="hud-row"><i class="sw eu"></i><span>欧盟</span><span class="hb"><i id="hbE" class="eu"></i></span><b id="hcE">89</b></div>
+      <div class="hud-row"><i class="sw us"></i><span>美国</span><span class="hb"><i id="hbU" class="us"></i></span><b id="hcU">27</b></div>
+      <div class="hud-note">非欧盟经济体 · 可拖动地球</div>
+    </aside>
+    <p class="hero-foot rv" style="--d:1.8s">数据：IMF 贸易方向统计（DOTS）· 世界银行 WDI · Natural Earth</p>
   </header>
 
   <!-- 第一幕：广度 -->

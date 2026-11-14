@@ -4,6 +4,7 @@ import "@fontsource/noto-serif-sc/700.css";
 import "@fontsource/noto-sans-sc/400.css";
 import "@fontsource/noto-sans-sc/700.css";
 import "./style.css";
+import { heroGlobe } from "./hero.js";
 
 const C = { C: "#e8453c", U: "#4a8fe7", E: "#d9a93f", eum: "#4a3d1f", none: "#1b2130" };
 const NAME = { C: "中国", U: "美国", E: "欧盟" };
@@ -38,77 +39,6 @@ function countryTip(id, i) {
     <div>头号伙伴：${c.eu ? "欧盟成员国" : t === "-" ? "无数据" : `<b style="color:${C[t]}">${NAME[t]}</b>`}</div>
     <div>对华贸易占本国外贸：${pct(c.cs[i])}</div>
     <div>对华贸易占 GDP：${pct(c.cg[i])}</div>`;
-}
-
-/* ---------- 开场：地球 + 飞线 ---------- */
-function globe() {
-  const svg = d3.select("#globe");
-  const { width: W, height: H } = svg.node().getBoundingClientRect();
-  const R = Math.min(W, H) * 0.4;
-  const proj = d3.geoOrthographic().scale(R).translate([W / 2, H / 2]).clipAngle(90).rotate([-60, -18]);
-  const path = d3.geoPath(proj);
-  const defs = svg.append("defs");
-  const g1 = defs.append("radialGradient").attr("id", "ocean").attr("cx", "40%").attr("cy", "35%");
-  g1.append("stop").attr("offset", "0%").attr("stop-color", "#1d2a48");
-  g1.append("stop").attr("offset", "100%").attr("stop-color", "#0c1222");
-  const glow = defs.append("radialGradient").attr("id", "halo");
-  glow.append("stop").attr("offset", "80%").attr("stop-color", "#3a5a9a").attr("stop-opacity", 0.25);
-  glow.append("stop").attr("offset", "100%").attr("stop-color", "#3a5a9a").attr("stop-opacity", 0);
-  svg.append("circle").attr("cx", W / 2).attr("cy", H / 2).attr("r", R * 1.12).attr("fill", "url(#halo)");
-  svg.append("path").datum({ type: "Sphere" }).attr("fill", "url(#ocean)").attr("stroke", "#2c3a5c");
-  const grat = svg.append("path").datum(d3.geoGraticule10()).attr("fill", "none").attr("stroke", "#1f2a44").attr("stroke-width", 0.5);
-  const i24 = yi(2024);
-  const land = svg.append("g").selectAll("path").data(world.features).join("path")
-    .attr("fill", (f) => {
-      const c = data.countries[f.id];
-      if (f.id === "CHN") return "#7a2620";
-      if (f.id === "USA") return "#1f3f6e";
-      if (!c) return "#1e2638";
-      if (c.eu) return "#4f4220";
-      return "#273046";
-    })
-    .attr("stroke", "#0b0f17").attr("stroke-width", 0.4);
-  const hubs = { C: [116.4, 39.9], U: [-77.0, 38.9], E: [4.35, 50.85] };
-  const arcs = [];
-  for (const f of world.features) {
-    const c = data.countries[f.id];
-    if (!c || c.eu) continue;
-    const t = c.top[i24];
-    if (!hubs[t]) continue;
-    arcs.push({ t, a: hubs[t], b: d3.geoCentroid(f), delay: Math.random() });
-  }
-  const arcG = svg.append("g").attr("fill", "none").attr("stroke-linecap", "round");
-  const arcSel = arcG.selectAll("path").data(arcs).join("path")
-    .attr("stroke", (d) => C[d.t]).attr("stroke-width", (d) => (d.t === "C" ? 1.2 : 1));
-  const hubSel = svg.append("g").selectAll("circle").data(Object.entries(hubs)).join("circle")
-    .attr("r", 4).attr("fill", ([k]) => C[k]).attr("stroke", "#fff").attr("stroke-width", 1);
-
-  function lifted(d, prog) {
-    // raised great-circle arc; hidden where behind the globe
-    const interp = d3.geoInterpolate(d.a, d.b);
-    const dist = d3.geoDistance(d.a, d.b);
-    const n = 40, pts = [];
-    const center = proj.invert([W / 2, H / 2]);
-    for (let k = 0; k <= n * prog; k++) {
-      const s = k / n, p = interp(s);
-      if (d3.geoDistance(p, center) > Math.PI / 2 - 0.05) { pts.push(null); continue; }
-      const xy = proj(p), h = 1 + Math.sin(Math.PI * s) * Math.min(0.14, dist * 0.09);
-      pts.push([W / 2 + (xy[0] - W / 2) * h, H / 2 + (xy[1] - H / 2) * h]);
-    }
-    return d3.line().defined((p) => p)(pts);
-  }
-  const t0 = performance.now();
-  d3.timer((el) => {
-    const r = proj.rotate();
-    proj.rotate([r[0] + 0.12, r[1]]);
-    land.attr("d", path); grat.attr("d", path);
-    svg.select("path").attr("d", path);
-    const time = (performance.now() - t0) / 1000;
-    arcSel.attr("d", (d) => lifted(d, Math.max(0, Math.min(1, (time - 0.6 - d.delay * 2.5) / 1.4))))
-      .attr("opacity", 0.7);
-    hubSel.attr("cx", ([, p]) => proj(p)[0]).attr("cy", ([, p]) => proj(p)[1])
-      .attr("display", ([, p]) => (d3.geoDistance(p, proj.invert([W / 2, H / 2])) > Math.PI / 2 ? "none" : null));
-  });
 }
 
 /* ---------- 第一幕：广度地图 ---------- */
@@ -373,7 +303,7 @@ function median() {
 }
 
 /* ---------- 组装 ---------- */
-globe();
+heroGlobe({ data, world, Y, C });
 strip();
 scatter();
 slope();
