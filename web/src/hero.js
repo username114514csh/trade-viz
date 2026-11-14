@@ -52,23 +52,59 @@ export function heroGlobe({ data, world, Y, C }) {
       groups.get(idx).push(lon, lat, Math.sin(lat * rad), Math.cos(lat * rad));
     }
   }
-  // 海洋点阵（比陆地稀疏，离岸一点距离）
-  const oc = [], OS = 2.2;
-  for (let lat = -66, row = 0; lat <= 78; lat += OS * 0.866, row++) {
+  // 海洋：1° 网格上的离岸距离场 → 大陆架光晕点阵 + 等深线
+  const GW = 360, GH = 180;
+  const dist = new Float64Array(GW * GH);
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
+    let land = false;
+    for (let a = 0; a < 4 && !land; a++) for (let b = 0; b < 4; b++) {
+      const o = ((j * 4 + a) * RW + i * 4 + b) * 4;
+      if (px[o] || px[o + 1]) { land = true; break; }
+    }
+    dist[j * GW + i] = land ? 0 : 1e9;
+  }
+  const hcos = d3.range(GH).map((j) => Math.max(0.08, Math.cos((89.5 - j) * rad)));
+  for (let pass = 0; pass < 2; pass++) {
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
+      const c = j * GW + i, h = hcos[j], dg = Math.hypot(1, h);
+      let d = Math.min(dist[c], dist[j * GW + ((i + GW - 1) % GW)] + h);
+      if (j > 0) d = Math.min(d, dist[c - GW] + 1, dist[(j - 1) * GW + ((i + GW - 1) % GW)] + dg, dist[(j - 1) * GW + ((i + 1) % GW)] + dg);
+      dist[c] = d;
+    }
+    for (let j = GH - 1; j >= 0; j--) for (let i = GW - 1; i >= 0; i--) {
+      const c = j * GW + i, h = hcos[j], dg = Math.hypot(1, h);
+      let d = Math.min(dist[c], dist[j * GW + ((i + 1) % GW)] + h);
+      if (j < GH - 1) d = Math.min(d, dist[c + GW] + 1, dist[(j + 1) * GW + ((i + 1) % GW)] + dg, dist[(j + 1) * GW + ((i + GW - 1) % GW)] + dg);
+      dist[c] = d;
+    }
+  }
+  const distAt = (lon, lat) => dist[Math.min(GH - 1, Math.floor(90 - lat)) * GW + (Math.floor(lon + 180) % GW)];
+  // 点阵：按离岸距离分 4 档（浅→深）
+  const ob = [[], [], [], []], OS = 1.45;
+  for (let lat = -68, row = 0; lat <= 80; lat += OS * 0.866, row++) {
     const n = Math.round((360 * Math.cos(lat * rad)) / OS);
     for (let k = 0; k < n; k++) {
       const lon = -180 + ((k + (row % 2) * 0.5) * 360) / n;
-      const [x, y] = eq([lon, lat]);
-      let land = false;
-      for (const [dx, dy] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3]]) {
-        const xx = Math.min(RW - 1, Math.max(0, Math.floor(x) + dx)), yy = Math.min(RH - 1, Math.max(0, Math.floor(y) + dy));
-        const o = (yy * RW + xx) * 4;
-        if (px[o] || px[o + 1]) { land = true; break; }
-      }
-      if (!land) oc.push(lon, lat, Math.sin(lat * rad), Math.cos(lat * rad));
+      const d = distAt(lon, lat);
+      if (d < 0.5) continue;
+      ob[d < 2.2 ? 0 : d < 5 ? 1 : d < 10 ? 2 : 3].push(lon, lat, Math.sin(lat * rad), Math.cos(lat * rad));
     }
   }
-  const oceanPts = Float32Array.from(oc);
+  const oceanPts = ob.map((a) => Float32Array.from(a));
+  const OCOL = ["#7ae8f5", "#4fb4ec", "#4384d8", "#3d6cc0"], OAL = [0.8, 0.55, 0.4, 0.3], OSZ = [1.25, 1.05, 0.95, 0.9];
+  // 等深线：离岸 3° / 7° / 13°，去掉网格边界上的假线段
+  const isoLines = d3.contours().size([GW, GH]).thresholds([3, 7, 13])(Array.from(dist)).map((c) => {
+    const lines = [];
+    for (const poly of c.coordinates) for (const ring of poly) {
+      let cur = [];
+      for (const [x, y] of ring) {
+        if (x < 0.75 || x > GW - 0.75 || y < 0.75 || y > GH - 0.75) { if (cur.length > 1) lines.push(cur); cur = []; continue; }
+        cur.push([x - 180, 90 - y]);
+      }
+      if (cur.length > 1) lines.push(cur);
+    }
+    return { type: "MultiLineString", coordinates: lines };
+  });
   const BASE = { C: "#ff4f3f", U: "#4f95f0", E: "#e9b54a", eum: "#6e5a2c", none: "#26314a" };
   const colOf = (id, i) => {
     if (id === "CHN") return "#ffc2ad";
@@ -102,7 +138,7 @@ export function heroGlobe({ data, world, Y, C }) {
     return (geomCache[key] = g);
   }
   const arcState = {};
-  arcIds.forEach((id) => (arcState[id] = { t: null, born: 0, off: Math.random() * 1.6, spd: 0.28 + Math.random() * 0.12 }));
+  arcIds.forEach((id) => (arcState[id] = { t: null, pt: null, born: 0, died: 0, spd: 0.16 + Math.random() * 0.08, off: Math.random() }));
 
   // HUD
   const hudYear = document.getElementById("hudYear");
@@ -123,7 +159,10 @@ export function heroGlobe({ data, world, Y, C }) {
       const t = data.countries[id].top[i];
       const st = arcState[id];
       const nt = HUB[t] ? t : null;
-      if (nt !== st.t) { st.t = nt; st.born = now + Math.random() * Math.min(600, PER_YEAR * 1.2); }
+      if (nt !== st.t) {
+        st.pt = st.t; st.died = now;
+        st.t = nt; st.born = now + Math.random() * Math.min(700, PER_YEAR * 0.9);
+      }
     }
   }
 
@@ -145,14 +184,13 @@ export function heroGlobe({ data, world, Y, C }) {
   cv.addEventListener("pointerup", endDrag);
   cv.addEventListener("pointercancel", endDrag);
 
-  // 首次播放稍快（约 8.7 秒），点「重播」放慢到约 16 秒，飞线依次长出不扎堆
-  let PER_YEAR = 300;
+  // 每年 0.8 秒（30 年约 23 秒）；?speed=毫秒 可覆盖（录 GIF 用）
+  const PER_YEAR = +new URLSearchParams(location.search).get("speed") || 800;
   const t0 = performance.now();
   let tStart = reduce ? -1e9 : t0 + 1500;
   document.getElementById("replay").addEventListener("click", () => {
-    PER_YEAR = 560;
-    for (const id of arcIds) arcState[id].t = null;
-    tStart = performance.now() + 700; shownYear = -1;
+    for (const id of arcIds) { const st = arcState[id]; st.pt = st.t; st.died = performance.now(); st.t = null; }
+    tStart = performance.now() + 900; shownYear = -1;
   });
 
   let visible = true;
@@ -197,36 +235,45 @@ export function heroGlobe({ data, world, Y, C }) {
     g.addColorStop(0, "rgba(120,165,255,0.45)"); g.addColorStop(0.1, "rgba(85,130,245,0.22)");
     g.addColorStop(0.4, "rgba(50,90,210,0.06)"); g.addColorStop(1, "rgba(40,70,180,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.5, 0, 7); ctx.fill();
-    // 海洋：深海渐变 + 偏青的浅层 + 阳光反射
+    // 海洋：深海渐变 + 光照反射
     g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, 0, cx, cy, R * 1.02);
-    g.addColorStop(0, "#1d4170"); g.addColorStop(0.3, "#13305a"); g.addColorStop(0.62, "#0b1c3c"); g.addColorStop(0.88, "#060f24"); g.addColorStop(1, "#040814");
+    g.addColorStop(0, "#143a66"); g.addColorStop(0.35, "#0d2a52"); g.addColorStop(0.68, "#081a38"); g.addColorStop(0.9, "#050f24"); g.addColorStop(1, "#030712");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
     ctx.globalCompositeOperation = "screen";
     const gx = cx - R * 0.38, gy = cy - R * 0.42;
-    g = ctx.createRadialGradient(gx, gy, 0, gx, gy, R * 0.55);
-    g.addColorStop(0, "rgba(120,200,255,0.22)"); g.addColorStop(0.35, "rgba(70,150,230,0.09)"); g.addColorStop(1, "rgba(40,100,200,0)");
+    g = ctx.createRadialGradient(gx, gy, 0, gx, gy, R * 0.6);
+    g.addColorStop(0, "rgba(110,190,255,0.16)"); g.addColorStop(0.4, "rgba(60,140,230,0.06)"); g.addColorStop(1, "rgba(40,100,200,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-    // 海洋点阵：稀疏、受光照
+    // 等深线（越远离海岸越淡）
+    ctx.lineWidth = 0.7;
+    [0.3, 0.19, 0.12].forEach((a, n) => {
+      ctx.globalAlpha = a * intro; ctx.strokeStyle = "#7fd4ff";
+      ctx.beginPath(); gpath(isoLines[n]); ctx.stroke();
+    });
+    // 海洋点阵：近岸亮青、远海深蓝，点径随缓慢的波纹起伏
     {
       const l0 = -lam * rad, p0 = -phi * rad, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
-      const bands = [new Path2D(), new Path2D(), new Path2D()], s = Math.max(1, R / 420);
-      const P = oceanPts;
-      for (let j = 0; j < P.length; j += 4) {
-        const cosc = sp0 * P[j + 2] + cp0 * P[j + 3] * Math.cos(P[j] * rad - l0);
-        if (cosc < 0.22) continue;
-        const xy = proj([P[j], P[j + 1]]);
-        const lit = ((xy[0] - cx) / R) * -0.48 + ((xy[1] - cy) / R) * -0.55 + cosc * 0.68;
-        const w = s * (0.5 + 0.7 * cosc);
-        bands[lit < 0.15 ? 0 : lit < 0.55 ? 1 : 2].rect(xy[0] - w / 2, xy[1] - w / 2, w, w);
+      const s = Math.max(1, R / 330), wt = now / 1400;
+      for (let b = 0; b < 4; b++) {
+        const lo = new Path2D(), hi = new Path2D(), P = oceanPts[b];
+        for (let j = 0; j < P.length; j += 4) {
+          const cosc = sp0 * P[j + 2] + cp0 * P[j + 3] * Math.cos(P[j] * rad - l0);
+          if (cosc < 0.18) continue;
+          const xy = proj([P[j], P[j + 1]]);
+          const lit = ((xy[0] - cx) / R) * -0.48 + ((xy[1] - cy) / R) * -0.55 + cosc * 0.68;
+          const wave = 0.75 + 0.35 * Math.sin(wt + P[j] * 0.21 + P[j + 1] * 0.33);
+          const r = s * OSZ[b] * (0.45 + 0.6 * cosc) * wave;
+          const pth = lit < 0.3 ? lo : hi;
+          pth.moveTo(xy[0] + r, xy[1]); pth.arc(xy[0], xy[1], r, 0, 6.2832);
+        }
+        ctx.fillStyle = OCOL[b];
+        ctx.globalAlpha = OAL[b] * 0.55 * intro; ctx.fill(lo);
+        ctx.globalAlpha = OAL[b] * intro; ctx.fill(hi);
       }
-      ctx.fillStyle = "#7fb0ff";
-      ctx.globalAlpha = 0.08 * intro; ctx.fill(bands[0]);
-      ctx.globalAlpha = 0.17 * intro; ctx.fill(bands[1]);
-      ctx.globalAlpha = 0.28 * intro; ctx.fill(bands[2]);
-      ctx.globalAlpha = intro;
     }
-    ctx.beginPath(); gpath(grat); ctx.strokeStyle = "rgba(140,180,240,0.05)"; ctx.lineWidth = 0.5; ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = intro;
+    ctx.beginPath(); gpath(grat); ctx.strokeStyle = "rgba(140,180,240,0.04)"; ctx.lineWidth = 0.5; ctx.stroke();
     ctx.beginPath(); gpath(world); ctx.strokeStyle = "rgba(160,190,250,0.13)"; ctx.lineWidth = 0.5; ctx.stroke();
 
     // ---- 发光层（离屏）：点阵、飞线、城市
@@ -260,14 +307,7 @@ export function heroGlobe({ data, world, Y, C }) {
     X.globalCompositeOperation = "lighter";
     X.lineCap = "round";
     const sec = now / 1000;
-    for (const id of arcIds) {
-      const st = arcState[id];
-      if (!st.t) continue;
-      const geo = arcGeom(id, st.t);
-      const N = geo.length - 1;
-      if (now < st.born) continue;
-      const grow = Math.min(1, (now - st.born) / 1100);
-      const nMax = Math.round(N * d3.easeCubicOut(grow));
+    const projArc = (geo, nMax) => {
       const pts = new Array(nMax + 1);
       for (let j = 0; j <= nMax; j++) {
         const q = geo[j];
@@ -276,24 +316,38 @@ export function heroGlobe({ data, world, Y, C }) {
         const xy = proj(q.p);
         pts[j] = [cx + (xy[0] - cx) * q.h, cy + (xy[1] - cy) * q.h];
       }
-      X.strokeStyle = C[st.t]; X.globalAlpha = 0.14 * intro; X.lineWidth = 0.8;
-      strokePts(X, pts, 0, nMax);
-      if (grow < 1) {
-        const p = pts[nMax];
-        if (p) { X.globalAlpha = 0.7 * (1 - grow) * intro; X.fillStyle = "#fff"; X.beginPath(); X.arc(p[0], p[1], 1.6, 0, 7); X.fill(); }
-        continue;
+      return pts;
+    };
+    X.lineWidth = 0.8;
+    for (const id of arcIds) {
+      const st = arcState[id];
+      // 旧飞线淡出（不再瞬间消失）
+      if (st.pt && now - st.died < 900) {
+        const geo = arcGeom(id, st.pt);
+        X.strokeStyle = C[st.pt]; X.globalAlpha = 0.16 * (1 - (now - st.died) / 900) * intro; X.lineWidth = 0.8;
+        strokePts(X, projArc(geo, geo.length - 1), 0, geo.length - 1);
       }
-      const u = (sec * st.spd + st.off) % 1.6;
-      if (u > 1.22) continue;
-      const head = Math.min(N, u * N), tail = Math.max(0, head - 0.26 * N);
-      X.lineWidth = 1.6;
+      if (!st.t || now < st.born) continue;
+      const geo = arcGeom(id, st.t);
+      const N = geo.length - 1;
+      const age = now - st.born, grow = Math.min(1, age / 1400);
+      const nMax = Math.round(N * d3.easeCubicInOut(grow));
+      const pts = projArc(geo, nMax);
+      // 生长中的线稍亮，长成后回落成细底线
+      X.strokeStyle = C[st.t]; X.globalAlpha = (0.16 + 0.14 * (1 - grow)) * intro; X.lineWidth = 0.8;
+      strokePts(X, pts, 0, nMax);
+      if (grow < 1) continue;
+      // 长成后，流光从中心城市出发，周期 4~6 秒，每条线错开
+      const u = (((age - 1400) / 1000) * st.spd + st.off) % 1;
+      const uu = u * 1.5;
+      if (uu > 1.25) continue;
+      const head = Math.min(N, uu * N), tail = Math.max(0, head - 0.3 * N);
+      X.lineWidth = 1.5;
       for (let s = 0; s < 6; s++) {
         const j0 = Math.floor(tail + ((head - tail) * s) / 6), j1 = Math.min(N, Math.ceil(tail + ((head - tail) * (s + 1)) / 6));
-        X.globalAlpha = ((s + 1) / 6) ** 1.8 * 0.9 * intro;
+        X.globalAlpha = ((s + 1) / 6) ** 2 * 0.8 * intro * Math.min(1, (age - 1400) / 600);
         strokePts(X, pts, j0, j1);
       }
-      const hp = pts[Math.round(head)];
-      if (u <= 1 && hp) { X.globalAlpha = 0.9 * intro; X.fillStyle = "#fff4ec"; X.beginPath(); X.arc(hp[0], hp[1], 1.3, 0, 7); X.fill(); }
     }
     const labels = [];
     for (const [t, ll] of Object.entries(HUB)) {
@@ -344,10 +398,11 @@ export function heroGlobe({ data, world, Y, C }) {
     ctx.textBaseline = "middle";
     for (const [t, x, y, al] of labels) {
       const txt = HUBNAME[t], tw = ctx.measureText(txt).width;
-      const bx = x + 12, by = y - 22, bw = tw + 20, bh = 20;
+      const by = y - 22, bw = tw + 20, bh = 20, flip = x + 12 + bw > W - 8;
+      const bx = flip ? x - 12 - bw : x + 12;
       ctx.globalAlpha = al * intro;
       ctx.strokeStyle = C[t]; ctx.lineWidth = 0.8;
-      ctx.beginPath(); ctx.moveTo(x + 3, y - 3); ctx.lineTo(bx, by + bh / 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + (flip ? -3 : 3), y - 3); ctx.lineTo(flip ? bx + bw : bx, by + bh / 2); ctx.stroke();
       ctx.fillStyle = "rgba(9,13,24,0.78)";
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10); else ctx.rect(bx, by, bw, bh);
