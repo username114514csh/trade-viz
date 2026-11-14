@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>广度与深度：中国如何成为世界的头号贸易伙伴</title>
+  <meta name="description" content="1995—2024 年，各国头号贸易伙伴从欧美转向中国。但中国赢得的是广度，还是深度？" />
+</head>
+<body>
+  <div id="tooltip" class="tooltip"></div>
+
+  <!-- 开场 -->
+  <header id="hero">
+    <svg id="globe"></svg>
+    <div class="hero-text">
+      <p class="kicker">国际贸易 · 数据叙事 · 1995—2024</p>
+      <h1>广度与深度</h1>
+      <p class="dek">三十年间，中国成了世界上最多国家的头号贸易伙伴。<br />但它赢得的是<em>广度</em>，还是<em>深度</em>？</p>
+      <div class="legend-inline">
+        <span><i class="sw cn"></i>头号伙伴是中国</span>
+        <span><i class="sw us"></i>是美国</span>
+        <span><i class="sw eu"></i>是欧盟</span>
+      </div>
+      <p class="scroll-hint">向下滚动 ↓</p>
+    </div>
+  </header>
+
+  <!-- 第一幕：广度 -->
+  <section class="scrolly" id="breadth">
+    <div class="sticky">
+      <div class="graphic">
+        <div class="map-head">
+          <div class="year-big" id="yearLabel">1995</div>
+          <svg id="countChart"></svg>
+          <button id="playBtn" class="play">▶ 播放</button>
+        </div>
+        <svg id="map"></svg>
+        <div class="legend-inline map-legend" id="mapLegend"></div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step" data-year="1995">
+        <p class="act">第一幕 · 广度</p>
+        <h3>1995：世界是欧美的</h3>
+        <p>在 <b>120</b> 个人口过百万的非欧盟经济体里，<b class="t-eu">89</b> 个的头号贸易伙伴是欧盟，<b class="t-us">27</b> 个是美国。以中国为头号伙伴的只有 <b class="t-cn">4</b> 个。</p>
+      </div>
+      <div class="step" data-year="2005">
+        <h3>2005：加入世贸后的第一波</h3>
+        <p>入世四年，红色开始在东亚和非洲零星出现，共 <b class="t-cn">18</b> 国。美国仍有 <b class="t-us">31</b> 国。</p>
+      </div>
+      <div class="step" data-year="2015">
+        <h3>2015：红色连成片</h3>
+        <p>东南亚、中亚、南美西海岸和非洲大片转红。中国已是 <b class="t-cn">47</b> 国的头号伙伴，美国退到 <b class="t-us">16</b> 国。</p>
+      </div>
+      <div class="step" data-year="2024">
+        <h3>2024：最大的那一块</h3>
+        <p>中国 <b class="t-cn">69</b>，欧盟 <b class="t-eu">46</b>，美国 <b class="t-us">15</b>。只比中美两方的话，和中国贸易额更大的国家从 2000 年的 <b>33</b> 个增加到 <b class="t-cn">107</b> 个。</p>
+        <p class="note">点上方「播放」可以看完整的 30 年。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="interlude">
+    <p>按「谁是头号伙伴」来数，中国赢了。<br />但头号伙伴只说明<em>排名</em>：一个国家对华贸易可能只占 GDP 的 3%，也可能占到 40%。</p>
+    <p class="big-q">中国赢得了广度，赢得深度了吗？</p>
+  </section>
+
+  <!-- 第二幕：深度 -->
+  <section class="scrolly" id="depth">
+    <div class="sticky">
+      <div class="graphic">
+        <div class="view" id="vDepthMap"><svg id="depthMap"></svg><div class="legend-inline map-legend" id="depthLegend"></div></div>
+        <div class="view" id="vStrip"><svg id="strip"></svg></div>
+        <div class="view" id="vScatter"><svg id="scatter"></svg></div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step" data-view="vDepthMap">
+        <p class="act">第二幕 · 深度</p>
+        <h3>把「依赖有多深」画上去</h3>
+        <p>只给 2023 年以中国为头号伙伴的国家上色，<b>颜色越亮，对华贸易占本国 GDP 越高</b>。</p>
+        <p>亮色集中在两处：<b class="t-cn">中国周边</b>（蒙古、越南、老挝、柬埔寨、中亚）和<b class="t-cn">中部非洲的资源国</b>。其余大片红色都偏暗。</p>
+      </div>
+      <div class="step" data-view="vStrip">
+        <h3>广而不深</h3>
+        <p>以中国为头号伙伴的 <b class="t-cn">59</b> 国，对华贸易占 GDP 的中位数是 <b class="t-cn">9.8%</b>，一半以上（53%）不到 10%。</p>
+        <p>以美国为头号伙伴的 <b class="t-us">14</b> 国，对美贸易占 GDP 的中位数是 <b class="t-us">17.3%</b>，接近前者的两倍。美国的「盘子」小，但更深。</p>
+      </div>
+      <div class="step" data-view="vScatter">
+        <h3>份额高 ≠ 依赖深</h3>
+        <p>横轴是对华贸易占本国外贸的比重（广度），纵轴是占 GDP 的比重（深度）。</p>
+        <p>巴西有 27% 的外贸是和中国做的，但只相当于其 GDP 的 7%。日本两项分别是 20% 和 7%。外贸占经济比重低的大国，份额再高也「绑」不深。</p>
+        <p>真正落在右上角的，是越南、蒙古、吉尔吉斯斯坦这类<b>紧挨中国</b>的经济体，以及刚果（金）、土库曼斯坦这类<b>出口高度依赖单一资源</b>的国家。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第三幕：典型国家 -->
+  <section class="block" id="cases">
+    <p class="act">第三幕 · 典型国家</p>
+    <h2>伙伴都换成了中国，深度却分了岔</h2>
+    <p class="lede">12 个 2023 年以中国为头号伙伴的国家，对华贸易占 GDP 的比重，2000 年 → 2023 年。</p>
+    <svg id="slope"></svg>
+    <p class="caption">越南从 9% 升到 40%，泰国从 5% 升到 20%，智利、秘鲁升到 15% 上下，它们是「既换了伙伴、也加深了绑定」。巴西、日本、印尼、肯尼亚同样换成了中国，对华贸易却仍在 GDP 的 10% 以内。</p>
+  </section>
+
+  <!-- 第四幕：贸易战之后 -->
+  <section class="block" id="after">
+    <p class="act">第四幕 · 2018 年贸易战之后</p>
+    <h2>中国抢走的是欧盟的地盘，不是美国的</h2>
+    <div class="two-col">
+      <div>
+        <svg id="trend"></svg>
+        <p class="caption">头号伙伴国家数，2008—2024。虚线为 2018 年中美贸易战开始。</p>
+      </div>
+      <div>
+        <div id="switch"></div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div><svg id="median"></svg></div>
+      <div class="side-text">
+        <h3>深度在缓慢加深</h3>
+        <p>把所有非欧盟经济体放在一起看，对华贸易占 GDP 的中位数从 1995 年的 0.6% 升到 2017 年的 5.2%，贸易战后继续升到 2024 年的 <b class="t-cn">6.9%</b>；对美贸易则从 3.2% 降到 <b class="t-us">2.2%</b>。</p>
+        <p>但 6.9% 仍然是一个「不深」的数字。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 结论 -->
+  <section class="block conclusion">
+    <h2>结论</h2>
+    <ol>
+      <li><b>广度：中国赢了。</b>头号伙伴是中国的经济体从 1995 年的 4 个增加到 2024 年的 69 个，超过欧盟（46）和美国（15）。</li>
+      <li><b>深度：大多还没有。</b>以中国为头号伙伴的国家里，一半以上对华贸易不到 GDP 的 10%，中位数 9.8%，低于美国伙伴对美的 17.3%。</li>
+      <li><b>深度集中在两类国家：</b>中国周边的高外向型经济体（越南、蒙古、东盟、中亚），以及资源出口国（刚果、土库曼斯坦）。</li>
+      <li><b>贸易战后：</b>中国新增的头号伙伴几乎全部来自欧盟的原有盘子；美国身边的 15 国（北美、中美、加勒比）基本没动。</li>
+    </ol>
+  </section>
+
+  <footer class="block method">
+    <h3>数据与方法</h3>
+    <p><b>数据</b>：IMF《贸易方向统计》（DOTS，经 DBnomics 获取）各国报告的商品出口（FOB）与进口（CIF）年度值，1995—2024；世界银行 WDI 的 GDP（现价美元）与人口。</p>
+    <p><b>口径</b>：贸易额 = 出口 + 进口。「头号伙伴」只在中国、美国、欧盟（27 国）三方中比较；「中国」不含港澳。样本为 2023 年人口 ≥100 万的经济体，剔除港澳和美国本身；欧盟成员国之间的贸易属于内部贸易，不计入计数（地图上用暗金色标出）。新加坡、巴林等面积过小的国家在地图上不显示，但计入统计。</p>
+    <p><b>局限</b>：只统计货物贸易，不含服务和投资；转口贸易（如经新加坡、香港）会低估部分国家的对华依赖；2024 年少数国家为 IMF 估算值。</p>
+    <p class="byline">陈施弘 · 国际经济与贸易 · 经济数据可视化期末作品 · 2026</p>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
