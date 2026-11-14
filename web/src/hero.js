@@ -187,6 +187,7 @@ export function heroGlobe({ data, world, Y, C }) {
   // 每年 0.8 秒（30 年约 23 秒）；?speed=毫秒 可覆盖（录 GIF 用）
   const PER_YEAR = +new URLSearchParams(location.search).get("speed") || 800;
   const t0 = performance.now();
+  window.__heroT0 = t0;
   let tStart = reduce ? -1e9 : t0 + 1500;
   document.getElementById("replay").addEventListener("click", () => {
     for (const id of arcIds) { const st = arcState[id]; st.pt = st.t; st.died = performance.now(); st.t = null; }
